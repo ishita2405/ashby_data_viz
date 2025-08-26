@@ -1,157 +1,205 @@
-<script>
-  const replyData = [
-    {emails: 1, reply_rate: 7,  usage: 6},
-    {emails: 2, reply_rate: 20, usage: 15},
-    {emails: 3, reply_rate: 23, usage: 54},
-    {emails: 4, reply_rate: 23, usage: 21},
-    {emails: 5, reply_rate: 22, usage: 3}
-  ];
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>3-Email Sweet Spot (Chart Only)</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  <style>
+    html, body { height: 100%; margin: 0; }
+    body { background: #0b1220; color: #e2e8f0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif; }
 
-  const svg = d3.select("#slope-chart");
-  const tooltip = d3.select(".tooltip");
+    /* Center the chart on the page */
+    .main {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .chart-card {
+      width: min(900px, 94vw);
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 16px;
+      padding: 16px 20px;
+    }
 
-  const margin = { top: 32, right: 56, bottom: 48, left: 56 };
-  let width, height;
+    /* Chart + tooltip styles */
+    #slope-chart { width: 100%; height: 440px; display: block; }
+    .sweet-spot { fill: #10b981; opacity: 0.2; }
+    .step-point { fill: #10b981; stroke: white; stroke-width: 3; }
+    .tooltip {
+      position: absolute; pointer-events: none; opacity: 0; transition: opacity .15s;
+      background: rgba(18,26,40,.95); color: #fff; padding: 10px; border-radius: 8px;
+      border: 1px solid rgba(16,185,129,.35); box-shadow: 0 8px 24px rgba(0,0,0,.35);
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="main">
+    <div class="chart-card">
+      <svg id="slope-chart"></svg>
+    </div>
+  </div>
+  <div class="tooltip"></div>
 
-  function size() {
-    const r = svg.node().getBoundingClientRect();
-    width = r.width - margin.left - margin.right;
-    height = r.height - margin.top - margin.bottom;
-  }
+  <script>
+    const replyData = [
+      {emails: 1, reply_rate: 7,  usage: 6},
+      {emails: 2, reply_rate: 20, usage: 15},
+      {emails: 3, reply_rate: 23, usage: 54},
+      {emails: 4, reply_rate: 23, usage: 21},
+      {emails: 5, reply_rate: 22, usage: 3}
+    ];
 
-  function draw() {
-    size();
-    svg.selectAll("*").remove();
-    const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+    const svg = d3.select("#slope-chart");
+    const tooltip = d3.select(".tooltip");
 
-    const x = d3.scaleLinear().domain([0.5, 5.5]).range([0, width]);
-    const yVol = d3.scaleLinear().domain([0, 60]).range([height, 0]);
-    const yRep = d3.scaleLinear().domain([0, 30]).range([height, 0]);
+    const margin = { top: 32, right: 56, bottom: 48, left: 56 };
+    let width, height;
 
-    // sweet spot band
-    g.append("rect")
-      .attr("class", "sweet-spot")
-      .attr("x", x(2.5))
-      .attr("y", 0)
-      .attr("width", x(3.5) - x(2.5))
-      .attr("height", height);
+    function size() {
+      const r = svg.node().getBoundingClientRect();
+      width = r.width - margin.left - margin.right;
+      height = r.height - margin.top - margin.bottom;
+    }
 
-    // sweet spot label
-    g.append("text")
-      .attr("x", x(3))
-      .attr("y", 20)
-      .attr("text-anchor", "middle")
-      .attr("fill", "#10b981")
-      .attr("font-weight", "600")
-      .attr("font-size", 14)
-      .text("SWEET SPOT");
+    function draw() {
+      size();
+      svg.selectAll("*").remove();
+      const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
-    // usage bars
-    g.selectAll(".usage-bar")
-      .data(replyData)
-      .enter().append("rect")
-      .attr("class", "usage-bar")
-      .attr("x", d => x(d.emails) - 15)
-      .attr("y", d => yVol(d.usage))
-      .attr("width", 30)
-      .attr("height", d => height - yVol(d.usage))
-      .attr("fill", "#c084fc")
-      .attr("opacity", 0.6)
-      .attr("rx", 4)
-      .on("mousemove", (event, d) => {
-        tooltip.style("opacity", 1)
-          .html(`<strong>${d.emails} Email${d.emails>1?'s':''}</strong><br>Relative Volume: ${d.usage}%<br>Reply Rate: ${d.reply_rate}%`)
-          .style("left", (event.pageX + 10) + "px")
-          .style("top", (event.pageY - 10) + "px");
-      })
-      .on("mouseleave", () => tooltip.style("opacity", 0));
+      const x = d3.scaleLinear().domain([0.5, 5.5]).range([0, width]);
+      const yVol = d3.scaleLinear().domain([0, 60]).range([height, 0]);
+      const yRep = d3.scaleLinear().domain([0, 30]).range([height, 0]);
 
-    // reply step line
-    const line = d3.line()
-      .x(d => x(d.emails))
-      .y(d => yRep(d.reply_rate))
-      .curve(d3.curveStepAfter);
+      // Sweet spot band + label (around 3 emails)
+      g.append("rect")
+        .attr("class", "sweet-spot")
+        .attr("x", x(2.5))
+        .attr("y", 0)
+        .attr("width", x(3.5) - x(2.5))
+        .attr("height", height);
 
-    g.append("path")
-      .datum(replyData)
-      .attr("fill", "none")
-      .attr("stroke", "#10b981")
-      .attr("stroke-width", 4)
-      .attr("d", line);
+      g.append("text")
+        .attr("x", x(3))
+        .attr("y", 20)
+        .attr("text-anchor", "middle")
+        .attr("fill", "#10b981")
+        .attr("font-weight", "600")
+        .attr("font-size", 14)
+        .text("SWEET SPOT");
 
-    // reply points
-    g.selectAll(".step-point")
-      .data(replyData).enter().append("circle")
-      .attr("class", "step-point")
-      .attr("r", 6)
-      .attr("cx", d => x(d.emails))
-      .attr("cy", d => yRep(d.reply_rate))
-      .on("mousemove", (event, d) => {
-        tooltip.style("opacity", 1)
-          .html(`<strong>${d.emails} Email${d.emails>1?'s':''}</strong><br>Reply Rate: ${d.reply_rate}%<br>Relative Volume: ${d.usage}%${d.emails===3?'<br><em>Sweet spot!</em>':''}${d.emails>3?'<br><em>Diminishing returns</em>':''}`)
-          .style("left", (event.pageX + 10) + "px")
-          .style("top", (event.pageY - 10) + "px");
-      })
-      .on("mouseleave", () => tooltip.style("opacity", 0));
+      // Usage bars (relative volume)
+      g.selectAll(".usage-bar")
+        .data(replyData)
+        .enter().append("rect")
+        .attr("class", "usage-bar")
+        .attr("x", d => x(d.emails) - 15)
+        .attr("y", d => yVol(d.usage))
+        .attr("width", 30)
+        .attr("height", d => height - yVol(d.usage))
+        .attr("fill", "#c084fc")
+        .attr("opacity", 0.6)
+        .attr("rx", 4)
+        .on("mousemove", (event, d) => {
+          tooltip.style("opacity", 1)
+            .html(`<strong>${d.emails} Email${d.emails>1?'s':''}</strong><br>Relative Volume: ${d.usage}%<br>Reply Rate: ${d.reply_rate}%`)
+            .style("left", (event.pageX + 10) + "px")
+            .style("top", (event.pageY - 10) + "px");
+        })
+        .on("mouseleave", () => tooltip.style("opacity", 0));
 
-    // plateau annotation
-    g.append("text")
-      .attr("x", x(4))
-      .attr("y", yRep(22.5) - 15)
-      .attr("text-anchor", "middle")
-      .attr("fill", "#fbbf24")
-      .attr("font-weight", "600")
-      .attr("font-size", 12)
-      .text("→ PLATEAU");
+      // Reply step line
+      const line = d3.line()
+        .x(d => x(d.emails))
+        .y(d => yRep(d.reply_rate))
+        .curve(d3.curveStepAfter);
 
-    // axes
-    g.append("g")
-      .attr("transform", `translate(0,${height})`)
-      .call(d3.axisBottom(x).ticks(5).tickFormat(d => d + " Email" + (d>1?"s":"")))
-      .selectAll("text").style("fill", "#e2e8f0");
+      g.append("path")
+        .datum(replyData)
+        .attr("fill", "none")
+        .attr("stroke", "#10b981")
+        .attr("stroke-width", 4)
+        .attr("d", line);
 
-    g.append("g")
-      .call(d3.axisLeft(yVol).ticks(6).tickFormat(d => d + "%"))
-      .selectAll("text").style("fill", "#c084fc");
+      // Reply points
+      g.selectAll(".step-point")
+        .data(replyData).enter().append("circle")
+        .attr("class", "step-point")
+        .attr("r", 6)
+        .attr("cx", d => x(d.emails))
+        .attr("cy", d => yRep(d.reply_rate))
+        .on("mousemove", (event, d) => {
+          tooltip.style("opacity", 1)
+            .html(`<strong>${d.emails} Email${d.emails>1?'s':''}</strong><br>Reply Rate: ${d.reply_rate}%<br>Relative Volume: ${d.usage}%${d.emails===3?'<br><em>Sweet spot!</em>':''}${d.emails>3?'<br><em>Diminishing returns</em>':''}`)
+            .style("left", (event.pageX + 10) + "px")
+            .style("top", (event.pageY - 10) + "px");
+        })
+        .on("mouseleave", () => tooltip.style("opacity", 0));
 
-    g.append("g")
-      .attr("transform", `translate(${width},0)`)
-      .call(d3.axisRight(yRep).ticks(6).tickFormat(d => d + "%"))
-      .selectAll("text").style("fill", "#10b981");
+      // Plateau annotation
+      g.append("text")
+        .attr("x", x(4))
+        .attr("y", yRep(22.5) - 15)
+        .attr("text-anchor", "middle")
+        .attr("fill", "#fbbf24")
+        .attr("font-weight", "600")
+        .attr("font-size", 12)
+        .text("→ PLATEAU");
 
-    // axis labels
-    g.append("text")
-      .attr("transform", "rotate(-90)")
-      .attr("y", -42).attr("x", -height/2)
-      .attr("text-anchor", "middle")
-      .attr("fill", "#c084fc").attr("font-size", "13px").attr("font-weight", "600")
-      .text("Relative Volume of Campaigns");
+      // Axes
+      g.append("g")
+        .attr("transform", `translate(0,${height})`)
+        .call(d3.axisBottom(x).ticks(5).tickFormat(d => d + " Email" + (d>1?"s":"")))
+        .selectAll("text").style("fill", "#e2e8f0");
 
-    g.append("text")
-      .attr("transform", "rotate(90)")
-      .attr("y", -width - 42).attr("x", height/2)
-      .attr("text-anchor", "middle")
-      .attr("fill", "#10b981").attr("font-size", "13px").attr("font-weight", "600")
-      .text("Campaign Reply Rate");
+      g.append("g")
+        .call(d3.axisLeft(yVol).ticks(6).tickFormat(d => d + "%"))
+        .selectAll("text").style("fill", "#c084fc");
 
-    // legend
-    const legend = g.append("g").attr("transform", `translate(24,24)`);
-    legend.append("line")
-      .attr("x1", 0).attr("x2", 20).attr("y1", 0).attr("y2", 0)
-      .attr("stroke", "#10b981").attr("stroke-width", 4);
-    legend.append("text")
-      .attr("x", 26).attr("y", 4).attr("font-size", 12)
-      .attr("fill", "#10b981").attr("font-weight", 600)
-      .text("Campaign Reply Rate");
-    legend.append("line")
-      .attr("x1", 0).attr("x2", 20).attr("y1", 22).attr("y2", 22)
-      .attr("stroke", "#c084fc").attr("stroke-width", 4);
-    legend.append("text")
-      .attr("x", 26).attr("y", 26).attr("font-size", 12)
-      .attr("fill", "#c084fc").attr("font-weight", 600)
-      .text("Relative Volume of Campaigns");
-  }
+      g.append("g")
+        .attr("transform", `translate(${width},0)`)
+        .call(d3.axisRight(yRep).ticks(6).tickFormat(d => d + "%"))
+        .selectAll("text").style("fill", "#10b981");
 
-  window.addEventListener("resize", draw);
-  draw();
-</script>
+      // Axis labels
+      g.append("text")
+        .attr("transform", "rotate(-90)")
+        .attr("y", -42).attr("x", -height/2)
+        .attr("text-anchor", "middle")
+        .attr("fill", "#c084fc").attr("font-size", "13px").attr("font-weight", "600")
+        .text("Relative Volume of Campaigns");
+
+      g.append("text")
+        .attr("transform", "rotate(90)")
+        .attr("y", -width - 42).attr("x", height/2)
+        .attr("text-anchor", "middle")
+        .attr("fill", "#10b981").attr("font-size", "13px").attr("font-weight", "600")
+        .text("Campaign Reply Rate");
+
+      // Legend (uniform length/thickness)
+      const legend = g.append("g").attr("transform", `translate(24,24)`);
+      legend.append("line")
+        .attr("x1", 0).attr("x2", 20).attr("y1", 0).attr("y2", 0)
+        .attr("stroke", "#10b981").attr("stroke-width", 4);
+      legend.append("text")
+        .attr("x", 26).attr("y", 4).attr("font-size", 12)
+        .attr("fill", "#10b981").attr("font-weight", 600)
+        .text("Campaign Reply Rate");
+      legend.append("line")
+        .attr("x1", 0).attr("x2", 20).attr("y1", 22).attr("y2", 22)
+        .attr("stroke", "#c084fc").attr("stroke-width", 4);
+      legend.append("text")
+        .attr("x", 26).attr("y", 26).attr("font-size", 12)
+        .attr("fill", "#c084fc").attr("font-weight", 600)
+        .text("Relative Volume of Campaigns");
+    }
+
+    window.addEventListener("resize", draw);
+    draw();
+  </script>
+</body>
+</html>
